@@ -1,0 +1,118 @@
+import plotly.graph_objects as go
+import plotly.graph_objects as go
+from collections import Counter
+
+# Extracted from the image matrix
+divisions = [
+    "SE-SEA",
+    "ILPES",
+    "Biblioteca",
+    "Desarrollo Económico",
+    "Desarrollo Productivo y Empresarial",
+    "Publicaciones",
+    "Estadísticas",
+    "Recursos Naturales",
+    "Sec. Com. (Desastres)",
+    "Sede Subregional Mexico"
+]
+
+projects = [
+    "Keywords Copiloto",
+    "Monitor de Tendencias",
+    "Identificación de textos sin OCR",
+    "Mapeo Estratégico de Conocimiento",
+    "Generación, traducción, automatización de contenido didáctico para cursos en línea",
+    "Transcribo IA",
+    "Sistematización automatizada de Planes Desarrollo",
+    "Evaluación de instrumentos de política assistida por IA",
+    "Automatización de identificación de autoridades gobierno LATAM y el Caribe",
+    "Automatización de captura de datos para indicadores económicos",
+    "Impacto de publicaciones de CEPAL en X (Twitter)"
+]
+
+# Manually mapping based on checkmarks in the image
+links = [
+    ("SE-SEA", "Monitor de Tendencias"),
+    ("SE-SEA", "Mapeo Estratégico de Conocimiento"),
+    ("SE-SEA", "Generación, traducción, automatización de contenido didáctico para cursos en línea"),
+    ("SE-SEA", "Transcribo IA"),
+    ("Biblioteca", "Keywords Copiloto"),
+    ("Biblioteca", "Transcribo IA"),
+    ("Biblioteca", "Identificación de textos sin OCR"),
+    ("Publicaciones", "Keywords Copiloto"),
+    ("Sec. Com. (Desastres)", "Sistematización automatizada de Planes Desarrollo"),
+    ("Desarrollo Económico", "Monitor de Tendencias"),
+    ("Estadísticas", "Transcribo IA"),
+    ("Recursos Naturales", "Monitor de Tendencias"),
+    ("ILPES", "Sistematización automatizada de Planes Desarrollo"),
+    ("ILPES", "Evaluación de instrumentos de política assistida por IA"),
+    ("ILPES", "Automatización de identificación de autoridades gobierno LATAM y el Caribe"),
+    ("Sede Subregional Mexico", "Automatización de captura de datos para indicadores económicos"),
+    ("Desarrollo Productivo y Empresarial", "Impacto de publicaciones de CEPAL en X (Twitter)")
+]
+
+# 2) Order projects by the median rank of their connected divisions (crossing-minimizing)
+div_rank = {d:i for i,d in enumerate(divisions)}  # fixed order
+proj_to_divrows = {p: [div_rank[d] for (d,pp) in links if pp==p] for p in projects}
+# put unconnected projects (if any) at the end
+def median(lst):
+    n = len(lst)
+    if n==0: return 1e9
+    s = sorted(lst)
+    mid = n//2
+    if n%2==1:
+        return s[mid]
+    else:
+        return (s[mid-1] + s[mid]) / 2
+projects_sorted = sorted(projects, key=lambda p: (median(proj_to_divrows[p]) if proj_to_divrows[p] else 1e9, p))
+
+# 3) Build nodes in the locked order
+nodes = divisions + projects_sorted
+idx = {n:i for i,n in enumerate(nodes)}
+source = [idx[d] for d,p in links]
+target = [idx[p] for d,p in links]
+value  = [1]*len(links)
+
+# 4) Colors
+division_color = "#2F3B52"
+
+project_colors = {
+    "Keywords Copiloto": "#4E79A7",
+    "Monitor de Tendencias": "#F28E2B",
+    "Identificación de textos sin OCR": "#E15759",
+    "Mapeo Estratégico de Conocimiento": "#76B7B2",
+    "Generación, traducción, automatización de contenido didáctico para cursos en línea": "#59A14F",
+    "Transcribo IA": "#EDC948",
+    "Sistematización automatizada de Planes Desarrollo": "#B07AA1",
+    "Evaluación de instrumentos de política assistida por IA": "#FF9DA7",
+    "Automatización de identificación de autoridades gobierno LATAM y el Caribe": "#9C755F",
+    "Automatización de captura de datos para indicadores económicos": "#86BCB6",
+    "Impacto de publicaciones de CEPAL en X (Twitter)": "#8CD17D",
+}
+def hex_to_rgba(h,a=0.45):
+    h=h.lstrip('#'); r=int(h[0:2],16); g=int(h[2:4],16); b=int(h[4:6],16)
+    return f"rgba({r},{g},{b},{a})"
+node_colors = [division_color]*len(divisions) + [project_colors[p] for p in projects_sorted]
+link_colors = [hex_to_rgba(project_colors[p], 0.45) for _,p in links]  # inherit project color
+
+# (Alternative: single neutral link color)
+# link_colors = ["rgba(47,59,82,0.28)"] * len(links)
+
+# 5) Positions: stay inside (0,1) to avoid Plotly’s reordering; space evenly
+def spread(n, top=0.02, bottom=0.02):
+    if n==1: return [0.5]
+    step=(1-top-bottom)/(n-1)
+    # epsilon prevents tie-based shuffles
+    return [top + i*step + i*1e-6 for i in range(n)]
+
+x = [0.01]*len(divisions) + [0.99]*len(projects_sorted)
+y = spread(len(divisions)) + spread(len(projects_sorted))
+
+fig = go.Figure(go.Sankey(
+    arrangement="snap",  # honors our x/y when inside (0,1)
+    node=dict(label=nodes, color=node_colors, line=dict(color="rgba(0,0,0,0.35)", width=0.4),
+              pad=12, thickness=18, x=x, y=y),
+    link=dict(source=source, target=target, value=value, color=link_colors)
+))
+fig.update_layout(title="Divisiones y Proyectos", font=dict(size=12), height=600, width=1200)
+fig.show()
