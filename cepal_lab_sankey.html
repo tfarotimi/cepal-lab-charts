@@ -69,6 +69,7 @@ def median(lst):
     else:
         return (s[mid-1] + s[mid]) / 2
 projects_sorted = sorted(projects, key=lambda p: (median(proj_to_divrows[p]) if proj_to_divrows[p] else 1e9, p))
+#change 
 
 # 3) Build nodes in the locked order
 nodes = divisions + projects_sorted
