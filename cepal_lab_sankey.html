@@ -121,5 +121,9 @@ fig = go.Figure(go.Sankey(
 fig.update_layout(title="Divisiones y Proyectos", font=dict(size=12), height=600, width=1200)
 fig.show()
 
-import plotly.io as pio
-pio.write_html(fig, file="sankey.html", full_html=True, include_plotlyjs="cdn")
+import os, plotly.io as pio
+print("CWD:", os.getcwd())
+os.makedirs("docs", exist_ok=True)
+pio.write_html(fig, file="docs/sankey.html", full_html=True, include_plotlyjs="cdn")
+
+
